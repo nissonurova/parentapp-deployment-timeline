@@ -2,8 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>ParentApp Deployment Timeline</title>
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 <style>
   :root {
     color-scheme: light;
@@ -37,7 +38,26 @@
   .launch-row label{font-size:14px;font-weight:500;white-space:nowrap}
   input[type=date]{font-family:inherit;font-size:14px;padding:8px 14px;border:1.5px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);outline:none;cursor:pointer;transition:border-color .2s}
   input[type=date]:focus{border-color:var(--accent)}
-  .date-hint{font-size:12px;color:var(--muted)}
+  .date-hint{font-size:12px;color:var(--muted);flex-basis:100%}
+  .launch-note{color:var(--secondary);font-size:13px;margin-top:-6px}
+  .key-dates{background:var(--surface);border:1px solid var(--border);border-left:4px solid var(--text);border-radius:12px;padding:18px 22px;margin-bottom:24px}
+  .key-dates h2{font-size:15px;font-weight:600;margin:0}
+  .kd-intro{font-size:13px;color:var(--secondary);margin:2px 0 12px}
+  .kd-num,.ms-badge{width:18px;height:18px;border-radius:50%;background:var(--text);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .ms{position:absolute;top:0;bottom:0;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;z-index:4;pointer-events:auto}
+  .ms-line{flex:1;width:0;border-left:2px dashed var(--text);opacity:.6}
+  .ms .ms-badge{margin-top:3px}
+  .weeks-edit{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--muted);margin-top:3px}
+  .weeks-edit input[type=number]{width:46px;padding:2px 4px;font-size:12px;border-width:1px;border-radius:4px}
+  .weeks-edit{white-space:nowrap}
+  .controls .launch-row{margin-bottom:0;padding-bottom:0;border-bottom:none}
+  .controls{padding:18px 24px}
+  .key-dates ol{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px 20px}
+  .key-dates li{display:flex;gap:10px;align-items:flex-start}
+  .kd-name{font-size:13px;font-weight:600}
+  .kd-when{font-size:13px;color:var(--secondary)}
+  .kd-rule{font-size:11px;color:var(--muted)}
+  .timeline-note{font-size:13px;line-height:1.55;color:var(--secondary);background:var(--accent-light);border-left:3px solid var(--accent);padding:12px 16px;border-radius:4px;margin:0 0 20px;max-width:80ch}
   .phases-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px}
   .phase-control{background:var(--bg);border:1.5px solid var(--border);border-radius:10px;padding:14px 16px;transition:border-color .2s}
   .phase-control.changed{border-color:#C4956A}
@@ -60,7 +80,7 @@
   /* Gantt */
   .gantt-container{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:24px}
   .gantt-header-row{display:flex;background:var(--text);color:#fff}
-  .gantt-label-col{width:200px;flex-shrink:0;padding:12px 16px;font-size:12px;color:rgba(255,255,255,.6);border-right:1px solid rgba(255,255,255,.1)}
+  .gantt-label-col{width:230px;flex-shrink:0;padding:12px 16px;font-size:12px;color:rgba(255,255,255,.6);border-right:1px solid rgba(255,255,255,.1)}
   .gantt-weeks-header{flex:1;display:flex;overflow:hidden}
   .week-header{flex:1;padding:12px 4px;text-align:center;font-size:10px;border-right:1px solid rgba(255,255,255,.08);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:rgba(255,255,255,.8)}
 
@@ -69,7 +89,7 @@
   .gantt-phase-row:last-child{border-bottom:none}
   .gantt-row{display:flex;min-height:52px;align-items:center;cursor:pointer;transition:background .15s}
   .gantt-row:hover{background:var(--bg)}
-  .gantt-phase-label{width:200px;flex-shrink:0;padding:12px 16px;border-right:1px solid var(--border);display:flex;align-items:center;gap:8px}
+  .gantt-phase-label{width:230px;flex-shrink:0;padding:12px 16px;border-right:1px solid var(--border);display:flex;align-items:center;gap:8px}
   .toggle-icon{font-size:10px;color:var(--muted);transition:transform .2s;flex-shrink:0;width:12px}
   .gantt-phase-row.expanded .toggle-icon{transform:rotate(90deg)}
   .phase-label-inner{}
@@ -92,6 +112,14 @@
   .activity-who{font-size:11px;color:var(--secondary);line-height:1.4}
   .activity-who strong{font-weight:600;color:var(--text)}
 
+  .bar-fix{opacity:.55;background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.25) 0 6px,transparent 6px 12px)}
+  .gantt-section{padding:8px 16px;font-size:11px;font-weight:600;color:var(--secondary);background:var(--bg);border-bottom:1px solid var(--border);letter-spacing:.02em}
+  .ms-row{display:flex;min-height:40px;align-items:center;border-bottom:1px solid var(--border)}
+  .ms-row:last-child{border-bottom:none}
+  .ms-row .gantt-bars{height:40px}
+  .ms-label{width:200px;flex-shrink:0;padding:8px 16px;border-right:1px solid var(--border);font-size:12px;font-weight:600;color:var(--text)}
+  .ms-label span{display:block;font-size:11px;font-weight:400;color:var(--muted);margin-top:2px}
+  .milestone{position:absolute;top:50%;width:12px;height:12px;background:var(--text);transform:translate(-50%,-50%) rotate(45deg);z-index:3;border-radius:2px}
   .gantt-footer{padding:14px 20px;background:var(--bg);border-top:1px solid var(--border);display:flex;gap:16px;flex-wrap:wrap;align-items:center}
   .legend-item{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--secondary)}
   .legend-dot{width:10px;height:10px;border-radius:3px}
@@ -105,11 +133,11 @@
 
 <header>
   <div>
-    <h1>Deployment Timeline</h1>
-    <p class="subtitle">ParentApp Localisation — sample workplan overview</p>
+    <h1>ParentApp deployment timeline</h1>
+    <p class="subtitle">This is a sample deployment. Specific tasks may differ depending on the details of your deployment, and roles and responsibilities may differ by project. These are agreed in Define.</p>
   </div>
   <div class="header-actions">
-    <button class="btn btn-outline" onclick="downloadCSV()">⬇ Download as CSV</button>
+    <button class="btn btn-outline" onclick="downloadExcel()">⬇ Download Gantt (Excel)</button>
     <button class="btn btn-ghost" onclick="resetToDefaults()">Reset to sample</button>
   </div>
 </header>
@@ -124,118 +152,124 @@
 </div>
 
 <div class="controls">
-  <div class="controls-header">Timeline settings</div>
   <div class="launch-row">
-    <label>Target launch date</label>
+    <label for="startDate">Start date</label>
+    <input type="date" id="startDate" />
+    <label for="launchDate">Target launch date</label>
     <input type="date" id="launchDate" />
-    <span class="date-hint">Leave blank to view as week numbers</span>
+    <span class="date-hint">Enter either date and the other is calculated. Change a phase's weeks in the timeline below; your start date stays and your launch date moves.</span>
+    <span class="date-hint launch-note"><strong>Target launch date</strong> is the date the app must be available in the App Store and Google Play. If you are training people on the app, your training date is your launch date.</span>
   </div>
-  <div class="phases-grid" id="phaseControls"></div>
-  <span class="reset-link" onclick="resetToDefaults()">Reset all phases to sample timeline</span>
 </div>
 
-<div id="summaryCards" class="summary-cards"></div>
+
+
+<section class="key-dates" aria-labelledby="kdTitle">
+  <h2 id="kdTitle">Key dates</h2>
+  <p class="kd-intro">Miss one of these and your launch date is at risk.</p>
+  <ol id="keyDatesList"></ol>
+</section>
 
 <div class="gantt-container">
   <div class="gantt-header-row">
-    <div class="gantt-label-col">Phase</div>
+    <div class="gantt-label-col">Phase (click for tasks)</div>
     <div class="gantt-weeks-header" id="weeksHeader"></div>
   </div>
   <div id="ganttBody"></div>
-  <div class="gantt-footer" id="ganttFooter"></div>
+  
 </div>
 
 <script>
 // ─── PHASES ───────────────────────────────────────────────────────────────────
 const PHASES = [
-  {id:'understand', name:'Understand', color:'#7B9EA8', defaultWeeks:2,  min:1, max:8,  note:'Review evidence base, demo, explore app'},
-  {id:'define',     name:'Define',     color:'#C4956A', defaultWeeks:4,  min:1, max:12, note:'Co-design workshop, key decisions, Localisation Companion, workplan'},
-  {id:'adapt',      name:'Adapt',      color:'#2D5F4F', defaultWeeks:8,  min:2, max:24, note:'Edit Google sheets, content localisation, web preview'},
-  {id:'create',     name:'Create',     color:'#8B7BA8', defaultWeeks:6,  min:2, max:20, note:'Illustrations, videos, translations'},
-  {id:'test',       name:'Test',       color:'#C4736A', defaultWeeks:6,  min:2, max:12, note:'Internal QA, partner testing, fixes'},
-  {id:'deploy',     name:'Deploy',     color:'#6A8B4F', defaultWeeks:2,  min:1, max:6,  note:'Store submission, release'}
+  {id:'understand', name:'Understand', color:'#7B9EA8', defaultWeeks:2,  min:1, max:8,  note:'Explore ParentApp, digital landscape analysis, confirm roles'},
+  {id:'define',     name:'Define',     color:'#C4956A', defaultWeeks:3,  min:1, max:12, note:'Co-design workshop, content package, scope check, Localisation Companion, workplan'},
+  {id:'adapt',      name:'Adapt',      color:'#2D5F4F', defaultWeeks:6,  min:2, max:24, note:'Prepare, update your Google Docs, then publish and review the web preview'},
+  {id:'create',     name:'Create',     color:'#8B7BA8', defaultWeeks:8,  min:2, max:20, note:'Branding assets, illustrations, videos and audio, translation and proofreading. Starts 2 weeks into Adapt'},
+  {id:'test',       name:'Test and fix issues', color:'#C4736A', defaultWeeks:5,  min:3, max:12, note:'Testing ends 2 weeks before Deploy. The last 2 weeks are for fixing issues'},
+  {id:'deploy',     name:'Deploy',     color:'#6A8B4F', defaultWeeks:1,  min:1, max:6,  note:'App store submission, release'}
 ];
 
 // ─── ACTIVITIES PER PHASE ─────────────────────────────────────────────────────
 const ACTIVITIES = {
   understand: [
-    { name: 'Read the evidence base behind ParentApp', who: 'Scaling Manager, Partner Focal Point' },
-    { name: 'Watch the ParentApp demo', who: 'Scaling Manager, Partner Focal Point' },
-    { name: 'Explore ParentApp hands-on — work through onboarding, open a module, try the library, and review a completed deployment', who: 'Scaling Manager, Partner Focal Point' },
+    { name: 'Read the evidence base behind ParentApp', who: 'Project Lead, Partner Focal Point' },
+    { name: 'Watch the ParentApp demo', who: 'Project Lead, Partner Focal Point' },
+    { name: 'Explore ParentApp hands-on: work through onboarding, open a lesson, try the library, and review a completed deployment', who: 'Project Lead, Partner Focal Point' },
+    { name: 'Complete the digital landscape analysis', who: 'Project Lead, Partner Focal Point' },
+    { name: 'Confirm who is the Project Lead, Product Manager and Partner Focal Point', who: 'Project Lead' },
   ],
   define: [
-    { name: 'Confirm Partner Focal Point and share RACI with team and partner', who: 'Scaling Manager' },
-    { name: 'Complete digital landscape analysis', who: 'Scaling Manager, Partner Focal Point' },
-    { name: 'Host co-design workshop (2.5–3 hours) — deployment context, user journey, branding, language, scaling pathways', who: 'Scaling Manager, Product Manager, Partner Focal Point' },
-    { name: 'Document all workshop outputs', who: 'Scaling Manager' },
-    { name: 'Review content package list and select relevant courses for this deployment', who: 'Scaling Manager, Partner Focal Point' },
-    { name: 'Fill in deployment information (branding, language, courses) using the Deployment Configuration Tool', who: 'Scaling Manager, Partner Focal Point' },
-    { name: 'Review and fill in the key decisions checklist (branding, language, content, programme, data, sustainability)', who: 'Scaling Manager, Partner Focal Point' },
-    { name: 'Work through all configuration areas using the Localisation Companion — branding, language, onboarding, courses & lessons, rewards, library', who: 'Scaling Manager, Partner Focal Point' },
-    { name: 'Share completed decision record with PM; PM reviews and updates Google sheets', who: 'Scaling Manager shares, Product Manager actions' },
-    { name: 'Identify any feature requests and raise with PM before workplan is finalised', who: 'Scaling Manager' },
-    { name: 'PM reviews feature requests; outcomes documented', who: 'Product Manager' },
-    { name: 'Build and agree detailed workplan with Partner Focal Point', who: 'Scaling Manager (owns), Partner Focal Point (reviews)' },
+    { name: 'Host the co-design workshop(s): programme objectives and scaling strategy, delivery model, parent journey, facilitator journey (if needed) and branding', who: 'Project Lead (hosts), Partner Focal Point, Product Manager' },
+    { name: 'Document decisions in the Define tracker; hold follow-up meetings to close any gaps', who: 'Project Lead (owns), Partner Focal Point, Product Manager' },
+    { name: 'Choose your courses and lessons in the content package builder and save the package under your deployment name', who: 'Project Lead, Partner Focal Point' },
+    { name: 'Check scope with the costing tool; flag any gaps to the Product Manager', who: 'Project Lead (runs), Product Manager (reviews), Approver (per your RACI)' },
+    { name: 'Complete and submit the Localisation Companion: content package, languages, branding, illustration approach and target launch date', who: 'Project Lead, Partner Focal Point' },
+    { name: 'Agree the workplan, timelines and RACI, with time built in for approvals such as government sign-offs', who: 'Project Lead (owns), Partner Focal Point, Product Manager' },
+    { name: 'Start shortlisting illustrators if not using AI; compare style and rates (does not need to finish in Define)', who: 'Project Lead, Partner Focal Point' },
   ],
   adapt: [
-    { name: 'PM provides content package (Google Drive folder and GitHub issue link)', who: 'Product Manager' },
-    { name: 'Review Adapt phase introduction, Google sheets guide, and Content Localisation Protocol', who: 'Scaling Manager' },
-    { name: 'Edit Google sheets for deployment — update content with Partner Focal Point feedback', who: 'Scaling Manager (edits), Partner Focal Point (reviews)' },
-    { name: 'Review and confirm onboarding, notifications, and rewards configurations', who: 'Scaling Manager, Partner Focal Point' },
-    { name: 'Begin sourcing local illustrators; share reference character families; get partner sign-off on illustration style', who: 'Scaling Manager, Partner Focal Point' },
-    { name: 'Create GitHub issue to flag Google sheets are ready for technical review and sync to web preview', who: 'Scaling Manager' },
-    { name: 'Technical review and sync app to web preview', who: 'Product Manager' },
-    { name: 'Scaling Manager and Partner Focal Point access web preview', who: 'Scaling Manager, Partner Focal Point' },
+    { name: 'Prepare: receive your Adapt tracker from the Product Manager', who: 'Product Manager' },
+    { name: 'Prepare: read the Content Approval Protocol and complete the 1-hour training with your Product Manager', who: 'Project Lead, Partner Focal Point, Product Manager' },
+    { name: 'Update: edit your Google Docs so the content fits your context and culture. All changes go in as suggestions and are approved as set out in the Content Approval Protocol', who: 'Project Lead, Partner Focal Point' },
+    { name: 'Update: review onboarding, notifications and rewards for your deployment', who: 'Project Lead, Partner Focal Point' },
+    { name: 'Update: review the terms and conditions and privacy notice for your deployment', who: 'Project Lead, Partner Focal Point, Approver (per your RACI)' },
+    { name: 'Publish and review: sync your Google Docs into the app and create a GitHub issue to request a web preview', who: 'Project Lead' },
+    { name: 'Publish and review: prepare the web preview', who: 'Product Manager' },
+    { name: 'Publish and review: spot check the web preview, fix any issues and sign off Adapt', who: 'Project Lead, Partner Focal Point, Approver (per your RACI)' },
   ],
   create: [
-    { name: 'Draft illustrator SOW — confirm character specifications and module illustration requirements; get partner sign-off on style', who: 'Scaling Manager (drafts), Partner Focal Point (approves)' },
-    { name: 'Commission and manage illustration contractors; upload approved assets to Google Drive', who: 'Scaling Manager' },
-    { name: 'Produce videos in Synthesia; confirm language is supported before committing to production', who: 'Scaling Manager (leads), Partner Focal Point (records), Product Manager (supports)' },
-    { name: 'Produce any additional images using image generator tool or external contractor — confirm scope with PM first', who: 'Scaling Manager, Product Manager' },
-    { name: 'Upload all assets to Google Drive following naming conventions; update file paths in Google sheets', who: 'Scaling Manager' },
-    { name: 'Complete pre-translation preparation — build translation dictionary, confirm terms not to translate', who: 'Scaling Manager, Partner Focal Point' },
-    { name: 'Complete translation via CrowdIn; Partner Focal Point reviews and signs off translation quality', who: 'Scaling Manager / Translator, Partner Focal Point (sign-off)' },
-    { name: 'Check all assets and translations in web preview before closing Create', who: 'Scaling Manager, Partner Focal Point' },
+    { name: 'Create branding assets (logo, app icon and colour theme files), if you do not already have them', who: 'Project Lead, designer if needed' },
+    { name: 'Draft illustrator SOW: confirm character specifications and lesson illustration requirements; get sign-off on style', who: 'Project Lead (drafts), Approver (per your RACI)' },
+    { name: 'Commission and manage illustration contractors; upload approved illustrations to Canto', who: 'Project Lead' },
+    { name: 'Produce videos and audio, if your content package includes them; confirm the language is supported before committing to production', who: 'Project Lead (leads), Product Manager (supports)' },
+    { name: 'Produce any additional images using an image generator tool or external contractor; confirm scope with the Product Manager first', who: 'Project Lead, Product Manager' },
+    { name: 'Upload all assets to Canto following naming conventions; add the asset file names to your Google Docs', who: 'Project Lead' },
+    { name: 'Complete pre-translation preparation: build a translation dictionary and confirm terms not to translate', who: 'Project Lead, Partner Focal Point' },
+    { name: 'Translate and proofread all app content, including the terms and conditions and privacy notice; sign off translation quality', who: 'Project Lead / Translator, Approver (per your RACI)' },
+    { name: 'Deadline: content updates finished and all illustrations and assets uploaded to Canto, 1 week before testing starts', who: 'Project Lead' },
+    { name: 'Check all assets and translations in the web preview before closing Create', who: 'Project Lead, Partner Focal Point' },
   ],
   test: [
-    { name: 'Watch testing training before starting', who: 'Scaling Manager, Partner Focal Point' },
-    { name: 'Complete internal testing — work through app against testing tracker; log all issues in GitHub assigned to PM', who: 'Scaling Manager' },
-    { name: 'PM triages and resolves all issues; Scaling Manager confirms internal testing is done before partner testing begins', who: 'Product Manager (resolves), Scaling Manager (confirms)' },
-    { name: 'Brief Partner Focal Point on how to test and share the testing tracker', who: 'Scaling Manager' },
-    { name: 'Partner testing — Partner Focal Point leads; Scaling Manager and PM resolve issues; Partner Focal Point retests and signs off', who: 'Partner Focal Point (leads), Scaling Manager, Product Manager' },
+    { name: 'Watch the testing training before starting', who: 'Project Lead, Partner Focal Point' },
+    { name: 'Internal testing (week 1): test the app against the testing tracker; log all issues in GitHub assigned to the Product Manager', who: 'Project Lead' },
+    { name: 'Fix internal testing issues (week 2); Project Lead confirms internal testing is done before external testing begins', who: 'Product Manager (resolves), Project Lead (confirms)' },
+    { name: 'Brief external testers on how to test and share the testing tracker', who: 'Project Lead' },
+    { name: 'External testing (week 3): test the app and log issues. Testing ends here', who: 'External testers, Project Lead' },
+    { name: 'Fix issues (last 2 weeks, before Deploy): no new testing, only fixes and spot checks; sign off', who: 'Product Manager, development team, Approver (per your RACI)' },
   ],
   deploy: [
-    { name: 'Work through release readiness checklist', who: 'Scaling Manager, Product Manager' },
-    { name: 'Prepare app store content — app name, icon, screenshots, promotional text, description, keywords in all deployment languages', who: 'Scaling Manager (content), Product Manager (leads)' },
-    { name: 'Partner Focal Point confirms readiness to support users post-launch; confirm issue reporting process is in place', who: 'Partner Focal Point' },
-    { name: 'Scaling Manager confirms in writing (Google Chat) that app is ready for release', who: 'Scaling Manager' },
-    { name: 'PM reviews completed checklist and confirms release readiness; engineering partners submit to App Store and Google Play', who: 'Product Manager' },
-    { name: 'Notify Partner Focal Point that app is live', who: 'Scaling Manager, Product Manager' },
+    { name: 'Work through the release readiness checklist', who: 'Project Lead, Product Manager' },
+    { name: 'Prepare app store content: app name, icon, screenshots, promotional text, description and keywords in all deployment languages', who: 'Project Lead (content), Product Manager (leads)' },
+    { name: 'Confirm who supports users after launch and that an issue reporting process is in place', who: 'Project Lead, Partner Focal Point' },
+    { name: 'Project Lead confirms in writing (Google Chat) that the app is ready for release', who: 'Project Lead' },
+    { name: 'Product Manager confirms release readiness; engineering partners submit to the App Store and Google Play', who: 'Product Manager' },
+    { name: 'Let everyone involved know the app is live', who: 'Project Lead, Product Manager' },
   ],
 };
 
 const PHASE_DOWNLOAD_LABELS = {
-  understand: 'Review evidence base, watch demo, explore app hands-on',
-  define: 'Co-design workshop, key decisions checklist, Localisation Companion, agree workplan',
-  adapt: 'Edit Google sheets, content localisation, technical review, web preview',
-  create: 'Illustrations, videos (Synthesia), translations via CrowdIn',
-  test: 'Internal QA, partner testing, iterate fixes',
-  deploy: 'App store content, release readiness checklist, App Store and Play Store submission'
+  understand: 'Explore ParentApp, digital landscape analysis, confirm roles',
+  define: 'Co-design workshop, Define tracker, content package, scope check, Localisation Companion, workplan',
+  adapt: 'Prepare, update your Google Docs, then publish and review the web preview',
+  create: 'Branding assets, illustrations, videos and audio, translation and proofreading',
+  test: 'Internal and external testing, then 2 weeks to fix issues before Deploy',
+  deploy: 'App store content, release readiness checklist, App Store and Google Play submission'
 };
 
 // ─── STATE ────────────────────────────────────────────────────────────────────
-let phaseWeeks = {}, prevWeeks = {}, pendingRevert = null;
+let phaseWeeks = {}, prevWeeks = {}, pendingRevert = null, startISO = null;
 let expandedPhases = new Set();
 PHASES.forEach(p => { phaseWeeks[p.id] = p.defaultWeeks; prevWeeks[p.id] = p.defaultWeeks; });
 
 // Restore saved state
 (function(){
   try {
-    const saved = localStorage.getItem('parentapp_gantt');
+    const saved = localStorage.getItem('parentapp_gantt_v3');
     if (saved) {
       const d = JSON.parse(saved);
-      if (d.phaseWeeks) phaseWeeks = {...phaseWeeks, ...d.phaseWeeks};
-      if (d.launchDate) window._savedLaunch = d.launchDate;
+      if (d.phaseWeeks) { phaseWeeks = {...phaseWeeks, ...d.phaseWeeks}; prevWeeks = {...phaseWeeks}; }
+      if (d.launchDate) startISO = isoLocal(addWeeks(parseLocal(d.launchDate), -getSchedule(phaseWeeks).deploy.end));
       if (d.expandedPhases) expandedPhases = new Set(d.expandedPhases);
     }
   } catch(e) {}
@@ -243,13 +277,22 @@ PHASES.forEach(p => { phaseWeeks[p.id] = p.defaultWeeks; prevWeeks[p.id] = p.def
 
 function saveState() {
   try {
-    localStorage.setItem('parentapp_gantt', JSON.stringify({
+    localStorage.setItem('parentapp_gantt_v3', JSON.stringify({
       phaseWeeks,
-      launchDate: getLaunch() || '',
+      launchDate: startISO ? isoLocal(addWeeks(parseLocal(startISO), getSchedule(phaseWeeks).deploy.end)) : '',
       expandedPhases: [...expandedPhases]
     }));
   } catch(e) {}
 }
+
+// ─── KEY DATES ────────────────────────────────────────────────────────────────
+function getMilestones(schedule) {
+  return [
+    {name:'Content updates and assets final', when:'Last day for content updates and to upload all illustrations and assets to Canto. 1 week before testing starts.', at: schedule.test.start - 1, phase:'create'},
+    {name:'Testing ends', when:'Last day of testing. The 2 weeks after are for fixing issues only.', at: schedule.test.end - 2, phase:'test'},
+  ];
+}
+function addDays(d, n) { const r = new Date(d); r.setDate(r.getDate()+Math.round(n)); return r; }
 
 // ─── SCHEDULE ─────────────────────────────────────────────────────────────────
 function getSchedule(w) {
@@ -268,8 +311,10 @@ function getSchedule(w) {
 function addWeeks(d, n) { const r = new Date(d); r.setDate(r.getDate()+n*7); return r; }
 function fmt(d)     { return d.toLocaleDateString('en-GB', {day:'numeric', month:'short'}); }
 function fmtFull(d) { return d.toLocaleDateString('en-GB', {day:'numeric', month:'short', year:'numeric'}); }
-function getLaunch() { return document.getElementById('launchDate').value || null; }
-function getBase(schedule, ls) { return addWeeks(new Date(ls), -schedule.deploy.end); }
+function isoLocal(d) { const p = n => String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`; }
+function parseLocal(v) { const [y,m,dd] = v.split('-').map(Number); return new Date(y, m-1, dd); }
+function getBase() { return startISO ? parseLocal(startISO) : null; }
+function launchFor(w) { return startISO ? addWeeks(parseLocal(startISO), getSchedule(w).deploy.end) : null; }
 
 // ─── TOAST ────────────────────────────────────────────────────────────────────
 let toastT;
@@ -283,18 +328,16 @@ function showToast(msg) {
 function showBanner(phaseName, oldLaunch, newLaunch) {
   document.getElementById('bannerTitle').textContent = `Extending ${phaseName} will push your launch date`;
   document.getElementById('bannerBody').textContent =
-    `Your target launch was ${fmtFull(new Date(oldLaunch))}. With this change it becomes ${fmtFull(newLaunch)}. Accept the new date or undo the change.`;
+    `Your target launch was ${fmtFull(oldLaunch)}. With this change it becomes ${fmtFull(newLaunch)}. Accept the new date or undo the change.`;
   document.getElementById('delayBanner').style.display = 'block';
 }
 function hideBanner() { document.getElementById('delayBanner').style.display = 'none'; }
 
-function acceptDelay()  { hideBanner(); pendingRevert = null; render(); saveState(); showToast('Launch date updated.'); }
+function acceptDelay()  { hideBanner(); pendingRevert = null; render(); saveState(); showToast('New launch date accepted.'); }
 function revertChange() {
   if (pendingRevert) {
     phaseWeeks[pendingRevert.id] = pendingRevert.old;
-    const inp = document.getElementById('weeks_'+pendingRevert.id);
-    if (inp) inp.value = pendingRevert.old;
-    document.getElementById('pc_'+pendingRevert.id).classList.remove('changed');
+    prevWeeks[pendingRevert.id] = pendingRevert.old;
     pendingRevert = null;
   }
   hideBanner(); render(); saveState(); showToast('Change undone. Timeline restored.');
@@ -302,78 +345,40 @@ function revertChange() {
 
 // ─── PHASE CHANGE ─────────────────────────────────────────────────────────────
 function onPhaseChange(id, val) {
-  const ls = getLaunch();
-  const oldS = getSchedule(phaseWeeks);
+  const oldLaunch = launchFor(phaseWeeks);
   const newW = {...phaseWeeks, [id]: val};
-  const newS = getSchedule(newW);
+  const newLaunch = launchFor(newW);
   phaseWeeks[id] = val;
-  if (ls && newS.deploy.end > oldS.deploy.end) {
-    const extra = newS.deploy.end - oldS.deploy.end;
-    const newLaunch = addWeeks(new Date(ls), extra);
+  if (oldLaunch && newLaunch > oldLaunch) {
     pendingRevert = {id, old: prevWeeks[id]};
-    showBanner(PHASES.find(p=>p.id===id).name, ls, newLaunch);
+    showBanner(PHASES.find(p=>p.id===id).name, oldLaunch, newLaunch);
   } else {
     hideBanner();
+    if (oldLaunch && newLaunch < oldLaunch) showToast('Launch moves earlier to ' + fmtFull(newLaunch) + '.');
   }
   prevWeeks = {...phaseWeeks};
-  document.getElementById('pc_'+id).classList.toggle('changed', val !== PHASES.find(p=>p.id===id).defaultWeeks);
   render(); saveState();
 }
 
 // ─── CONTROLS ─────────────────────────────────────────────────────────────────
-function buildControls() {
-  const c = document.getElementById('phaseControls'); c.innerHTML = '';
-  PHASES.forEach(phase => {
-    const div = document.createElement('div');
-    div.className = 'phase-control'; div.id = 'pc_'+phase.id;
-    div.innerHTML = `
-      <div class="phase-control-header">
-        <div class="phase-dot" style="background:${phase.color}"></div>
-        <span class="phase-control-name">${phase.name}</span>
-      </div>
-      <div class="phase-control-body">
-        <label>Duration</label>
-        <input type="number" id="weeks_${phase.id}" value="${phaseWeeks[phase.id]}" min="${phase.min}" max="${phase.max}"/>
-        <label>weeks</label>
-      </div>
-      <div class="phase-note">${phase.note}</div>`;
-    c.appendChild(div);
-    if (phaseWeeks[phase.id] !== phase.defaultWeeks) div.classList.add('changed');
-    div.querySelector('input').addEventListener('change', e => {
-      let v = parseInt(e.target.value);
-      const p = PHASES.find(x => x.id === phase.id);
-      if (isNaN(v)||v<p.min) v = p.min;
-      if (v > p.max) v = p.max;
-      e.target.value = v;
-      onPhaseChange(phase.id, v);
-    });
-  });
-}
+function buildControls() {}
 
 // ─── RENDER ───────────────────────────────────────────────────────────────────
 function render() {
-  const ls = getLaunch(), hasDate = !!ls;
   const schedule = getSchedule(phaseWeeks);
   const total = schedule.deploy.end;
-  const base = hasDate ? getBase(schedule, ls) : null;
+  const base = getBase(), hasDate = !!base;
+  document.getElementById('startDate').value = hasDate ? isoLocal(base) : '';
+  document.getElementById('launchDate').value = hasDate ? isoLocal(addWeeks(base, total)) : '';
 
-  if (hasDate && !document.getElementById('delayBanner').style.display.includes('block')) {
-    const actualLaunch = addWeeks(base, total);
-    const iso = actualLaunch.toISOString().split('T')[0];
-    if (document.getElementById('launchDate').value !== iso)
-      document.getElementById('launchDate').value = iso;
-  }
-
-  // Summary cards
-  const sc = document.getElementById('summaryCards'); sc.innerHTML = '';
-  PHASES.forEach(ph => {
-    const s = schedule[ph.id];
-    const card = document.createElement('div'); card.className = 'summary-card';
-    card.innerHTML = `
-      <div class="summary-card-phase" style="color:${ph.color}">${ph.name}</div>
-      ${hasDate ? `<div class="summary-card-dates">${fmt(addWeeks(base,s.start))} — ${fmt(addWeeks(base,s.end))}</div>` : ''}
-      <div class="summary-card-weeks">${s.end-s.start}w${!hasDate?' · from W'+(s.start+1):''}</div>`;
-    sc.appendChild(card);
+  // Key dates panel
+  const kd = document.getElementById('keyDatesList'); kd.innerHTML = '';
+  const milestones = getMilestones(schedule);
+  milestones.forEach((k, i) => {
+    const li = document.createElement('li');
+    const when = hasDate ? fmtFull(addDays(base, k.at*7)) : `Week ${Math.floor(k.at)+1}`;
+    li.innerHTML = `<div class="kd-num">${i+1}</div><div><div class="kd-name">${k.name}</div><div class="kd-when">${when}</div><div class="kd-rule">${k.when}</div></div>`;
+    kd.appendChild(li);
   });
 
   // Week headers
@@ -407,8 +412,17 @@ function render() {
       <span class="toggle-icon">▶</span>
       <div class="phase-label-inner">
         <div class="phase-label-name" style="color:${ph.color}">${ph.name}</div>
-        <div class="phase-label-sub">${s.end-s.start}w${hasDate?' · '+fmt(addWeeks(base,s.start)):''} · ${phaseActivities.length} activities</div>
+        <label class="weeks-edit"><input type="number" id="weeks_${ph.id}" value="${phaseWeeks[ph.id]}" min="${ph.min}" max="${ph.max}" aria-label="${ph.name} weeks"/> weeks${hasDate?' · '+fmt(addWeeks(base,s.start))+' – '+fmt(addWeeks(base,s.end)):''}</label>
       </div>`;
+    const wIn = lbl.querySelector('input');
+    wIn.addEventListener('click', e => e.stopPropagation());
+    lbl.querySelector('.weeks-edit').addEventListener('click', e => e.stopPropagation());
+    wIn.addEventListener('change', e => {
+      let v = parseInt(e.target.value);
+      if (isNaN(v) || v < ph.min) v = ph.min;
+      if (v > ph.max) v = ph.max;
+      onPhaseChange(ph.id, v);
+    });
 
     const bars = document.createElement('div');
     bars.className = 'gantt-bars';
@@ -421,7 +435,27 @@ function render() {
     bar.style.width   = `${((s.end-s.start)/total)*100}%`;
     bar.style.background = ph.color;
     bar.textContent = ph.name;
+    if (ph.id === 'test') {
+      const fixW = 2, testEnd = s.end - fixW;
+      bar.style.width = `${((testEnd-s.start)/total)*100}%`;
+      bar.textContent = 'Test';
+      const fix = document.createElement('div');
+      fix.className = 'bar bar-fix';
+      fix.style.left = `${(testEnd/total)*100}%`;
+      fix.style.width = `${(fixW/total)*100}%`;
+      fix.style.background = ph.color;
+      fix.textContent = 'Fix issues';
+      bars.appendChild(fix);
+    }
     bars.appendChild(bar);
+    milestones.forEach((m, i) => {
+      if (m.phase !== ph.id) return;
+      const mk = document.createElement('div'); mk.className = 'ms';
+      mk.style.left = `${(m.at/total)*100}%`;
+      mk.title = `${i+1}. ${m.name}${hasDate ? ': '+fmtFull(addDays(base, m.at*7)) : ''}`;
+      mk.innerHTML = `<div class="ms-badge">${i+1}</div><div class="ms-line"></div>`;
+      bars.appendChild(mk);
+    });
 
     row.appendChild(lbl);
     row.appendChild(bars);
@@ -453,18 +487,6 @@ function render() {
     body.appendChild(wrapper);
   });
 
-  // Footer
-  const ft = document.getElementById('ganttFooter'); ft.innerHTML = '';
-  PHASES.forEach(ph => {
-    const i = document.createElement('div'); i.className = 'legend-item';
-    i.innerHTML = `<div class="legend-dot" style="background:${ph.color}"></div>${ph.name}`;
-    ft.appendChild(i);
-  });
-  if (hasDate) {
-    const ll = document.createElement('div'); ll.className = 'launch-label';
-    ll.textContent = 'Launch · ' + fmtFull(addWeeks(base,total));
-    ft.appendChild(ll);
-  }
 }
 
 function togglePhase(id) {
@@ -486,47 +508,131 @@ function resetToDefaults() {
     const inp = document.getElementById('weeks_'+p.id); if (inp) inp.value = p.defaultWeeks;
     const pc  = document.getElementById('pc_'+p.id);   if (pc)  pc.classList.remove('changed');
   });
-  hideBanner(); render(); saveState(); showToast('Timeline reset to sample defaults.');
+  startISO = null; pendingRevert = null;
+  hideBanner(); render(); saveState(); showToast('Timeline reset to the sample. Dates cleared.');
 }
 
-function downloadCSV() {
-  const ls = getLaunch(), hasDate = !!ls;
-  const schedule = getSchedule(phaseWeeks);
-  const base = hasDate ? getBase(schedule, ls) : null;
-  const rows = [['Phase','Duration (weeks)','Start','End','Activities']];
-  PHASES.forEach(ph => {
-    const s = schedule[ph.id];
-    rows.push([ph.name, s.end-s.start,
-      hasDate ? fmt(addWeeks(base,s.start)) : `Week ${s.start+1}`,
-      hasDate ? fmt(addWeeks(base,s.end))   : `Week ${s.end}`,
-      PHASE_DOWNLOAD_LABELS[ph.id]]);
-  });
-  if (hasDate) {
-    rows.push([]);
-    rows.push(['Target launch','','',fmtFull(addWeeks(base,schedule.deploy.end)),'']);
+// ─── EXCEL GANTT EXPORT ───────────────────────────────────────────────────────
+function tint(hex, amt) {
+  const n = parseInt(hex.slice(1), 16);
+  const mix = c => Math.round(c + (255 - c) * amt);
+  return [mix(n >> 16), mix((n >> 8) & 255), mix(n & 255)].map(v => v.toString(16).padStart(2, '0')).join('').toUpperCase();
+}
+function buildGanttWorkbook(ExcelJS, ctx) {
+  const { PHASES, ACTIVITIES, phaseWeeks, startISO, getSchedule, getMilestones } = ctx;
+  const sched = getSchedule(phaseWeeks);
+  const total = sched.deploy.end;
+  const nWeeks = total + 4;
+  const FIRST = 4;                                   // column D = week 1
+  const font = { name: 'Arial', size: 10 };
+  const solid = argb => ({ type: 'pattern', pattern: 'solid', fgColor: { argb } });
+  const start = startISO ? (() => { const [y, m, d] = startISO.split('-').map(Number); return new Date(y, m - 1, d); })() : null;
+  const dayAfter = n => { const r = new Date(start); r.setDate(r.getDate() + Math.round(n)); return r; };
+  const fmt = d => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  const fmtFull = d => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('Timeline', { views: [{ state: 'frozen', xSplit: 3, ySplit: 7 }] });
+  ws.columns = [{ width: 20 }, { width: 60 }, { width: 34 }, ...Array.from({ length: nWeeks }, () => ({ width: 7 }))];
+
+  const note = (cell, text, opts = {}) => { const c = ws.getCell(cell); c.value = text; c.font = { ...font, ...opts }; };
+  note('A1', 'ParentApp deployment timeline', { size: 14, bold: true });
+  note('A2', 'This is a sample deployment. Specific tasks may differ depending on the details of your deployment, and roles and responsibilities may differ by project. These are agreed in Define.', { italic: true, color: { argb: 'FF6B6860' } });
+  note('A3', 'Target launch date is the date the app must be available in the App Store and Google Play. If you are training people on the app, your training date is your launch date.', { italic: true, color: { argb: 'FF6B6860' } });
+  note('A4', 'Start date', { bold: true }); note('B4', start ? fmtFull(start) : 'Not set');
+  note('A5', 'Target launch date', { bold: true }); note('B5', start ? fmtFull(dayAfter(total * 7)) : `End of week ${total}`);
+
+  // Header (row 7): Phase | Task | Who | weeks
+  const HDR = 7;
+  const hdr = ws.getRow(HDR);
+  ['Phase', 'Task', 'Who'].forEach((h, i) => hdr.getCell(i + 1).value = h);
+  for (let w = 0; w < nWeeks; w++) hdr.getCell(FIRST + w).value = start ? fmt(dayAfter(w * 7)) : `W${w + 1}`;
+  hdr.height = start ? 42 : 18;
+  for (let i = 1; i < FIRST + nWeeks; i++) {
+    const c = hdr.getCell(i);
+    c.font = { ...font, bold: true, color: { argb: 'FFFFFFFF' } };
+    c.fill = solid('FF1A1A18');
+    c.alignment = i >= FIRST ? { horizontal: 'center', vertical: 'middle', textRotation: start ? 90 : 0 } : { vertical: 'middle' };
   }
-  // Activity rows
-  rows.push([]);
-  rows.push(['','','','','']);
-  rows.push(['Phase activities','','','','']);
+
+  const paint = (row, from, to, argb) => { for (let w = from; w < to; w++) row.getCell(FIRST + w).fill = solid(argb); };
+  const grid = row => { for (let w = 0; w < nWeeks; w++) row.getCell(FIRST + w).border = { right: { style: 'hair', color: { argb: 'FFE8E4DC' } } }; };
+
+  let r = HDR + 1;
+  const testSpans = [[0, 1], [0, 1], [1, 2], [1, 2], [2, 3], [-2, 0]];   // offsets within Test; negative = from the end
   PHASES.forEach(ph => {
-    (ACTIVITIES[ph.id]||[]).forEach((act,i) => {
-      rows.push([i===0?ph.name:'', i+1, act.name, '', act.who]);
+    const s = sched[ph.id];
+    const color = ph.color.slice(1).toUpperCase();
+    const pr = ws.getRow(r++);
+    pr.getCell(1).value = ph.name;
+    pr.getCell(1).font = { ...font, bold: true, color: { argb: 'FF' + color } };
+    grid(pr); paint(pr, s.start, s.end, 'FF' + color);
+    (ACTIVITIES[ph.id] || []).forEach((a, i) => {
+      const ar = ws.getRow(r++);
+      ar.getCell(2).value = a.name; ar.getCell(3).value = a.who;
+      [2, 3].forEach(k => { ar.getCell(k).font = font; ar.getCell(k).alignment = { wrapText: true, vertical: 'top' }; });
+      let from = s.start, to = s.end;
+      if (ph.id === 'test' && testSpans[i]) {
+        const [a1, b1] = testSpans[i];
+        if (a1 < 0) { from = s.end + a1; to = s.end; } else { from = s.start + a1; to = s.start + b1; }
+      }
+      grid(ar); paint(ar, from, to, 'FF' + tint(ph.color, 0.6));
     });
   });
-  const csv = rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
-  const blob = new Blob([csv], {type:'text/csv'});
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href = url; a.download = 'ParentApp_Deployment_Timeline.csv'; a.click();
-  URL.revokeObjectURL(url);
-  showToast('Downloaded as CSV.');
+
+  // Key dates
+  r++;
+  const kh = ws.getRow(r++);
+  kh.getCell(1).value = 'Key dates'; kh.getCell(1).font = { ...font, bold: true };
+  kh.getCell(2).value = 'Miss one of these and your launch date is at risk.'; kh.getCell(2).font = { ...font, italic: true, color: { argb: 'FF6B6860' } };
+  getMilestones(sched).forEach(m => {
+    const kr = ws.getRow(r++);
+    kr.getCell(1).value = m.name; kr.getCell(1).font = { ...font, bold: true }; kr.getCell(1).alignment = { wrapText: true, vertical: 'top' };
+    kr.getCell(2).value = m.when; kr.getCell(2).font = font; kr.getCell(2).alignment = { wrapText: true, vertical: 'top' };
+    kr.getCell(3).value = start ? fmtFull(dayAfter(m.at * 7)) : `Week ${Math.floor(m.at) + 1}`; kr.getCell(3).font = { ...font, bold: true };
+    const wk = Math.ceil(m.at) - 1;                    // the last week before the deadline
+    grid(kr); paint(kr, wk, wk + 1, 'FF1A1A18');
+  });
+  return wb;
 }
 
-document.getElementById('launchDate').addEventListener('change', () => { hideBanner(); render(); saveState(); });
+async function saveFile(filename, blob) {
+  const downloads = window.claude ? await window.claude.use('downloads') : undefined;
+  if (downloads) {
+    try { await downloads.save({filename, data: blob}); showToast('Downloaded.'); }
+    catch (e) {
+      if (e && e.code === 'declined') return;
+      showToast(e && e.code === 'rate_limited' ? 'A download prompt is already open.' : 'Download failed.');
+    }
+    return;
+  }
+  if (downloads === null) { showToast('Download is not available in this view.'); return; }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  showToast('Downloaded.');
+}
+
+async function downloadExcel() {
+  if (!window.ExcelJS) { showToast('Excel export could not load. Check your connection and try again.'); return; }
+  try {
+    const wb = buildGanttWorkbook(window.ExcelJS, { PHASES, ACTIVITIES, phaseWeeks, startISO, getSchedule, getMilestones });
+    const buf = await wb.xlsx.writeBuffer();
+    await saveFile('ParentApp_Deployment_Timeline.xlsx', new Blob([buf], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
+  } catch (e) { showToast('Download failed.'); }
+}
+
+
+function onDateInput(which) {
+  const v = document.getElementById(which).value;
+  if (!v) { startISO = null; }
+  else if (which === 'startDate') { startISO = v; }
+  else { startISO = isoLocal(addWeeks(parseLocal(v), -getSchedule(phaseWeeks).deploy.end)); }
+  hideBanner(); pendingRevert = null; render(); saveState();
+}
+['startDate','launchDate'].forEach(id => document.getElementById(id).addEventListener('change', () => onDateInput(id)));
 
 buildControls();
-if (window._savedLaunch) document.getElementById('launchDate').value = window._savedLaunch;
 render();
 </script>
 </body>
